@@ -984,6 +984,7 @@ public class EVCacheImpl implements EVCache, EVCacheImplMBean {
             String canonicalKey = evcKey.getCanonicalKey(client.isDuetClient());
             if (hashKey != null) {
                 final EVCacheItem<Object> obj = client.metaGet(hashKey, evcacheValueTranscoder, throwException, hasZF);
+                if (null == obj) return null;
                 if (obj.getData() instanceof EVCacheValue) {
                     final EVCacheValue val = (EVCacheValue) obj.getData();
                     if (null == val) {
