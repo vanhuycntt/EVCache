@@ -30,7 +30,7 @@ public class EVCacheTestDI extends DIBase implements EVCacheGetOperationListener
     private static final Logger log = LoggerFactory.getLogger(EVCacheTestDI.class);
     private int loops = 1;
     private Map<String, String> propertiesToSet;
-    private String appName = "EVCACHE_PERF_SP_HW";
+    private String appName = "EVCACHE_TEST";
 
     public static void main(String args[]) {
         try {
@@ -57,8 +57,6 @@ public class EVCacheTestDI extends DIBase implements EVCacheGetOperationListener
         propertiesToSet.putIfAbsent(appName + ".throttle.percent", "0");
         propertiesToSet.putIfAbsent(appName + ".log.operation", "1000");
         propertiesToSet.putIfAbsent(appName + ".EVCacheClientPool.validate.input.queue", "true");
-        propertiesToSet.putIfAbsent(appName + ".hash.key","true");
-//        propertiesToSet.putIfAbsent(appName + ".use.binary.protocol", "false");
     }
 
     protected Properties getProps() {
@@ -260,9 +258,12 @@ public class EVCacheTestDI extends DIBase implements EVCacheGetOperationListener
         testEVCache();
     }
 
-    @Test(dependsOnMethods = {"testEVCache"})
+    @Test(dependsOnMethods = {"testAppendOrAdd"})
     public void testEVCacheInternal() throws Exception {
+        this.propertiesToSet.putIfAbsent(appName + ".hash.key", "true");
+        propertiesToSet.putIfAbsent(appName + ".use.binary.protocol", "false");
         EVCacheInternal evCacheInternal = getInternalNewBuilder().setAppName(appName).setCachePrefix("cid").enableRetry().build();
+        refreshEVCache();
         this.evCache.set("internaltestkey", "internaltestvalue");
         EVCacheItem evCacheItem = evCache.metaGet("internaltestkey", null);
         EVCacheItem evCacheItem1 = evCacheInternal.metaGet("internaltestkey", null);
@@ -274,12 +275,19 @@ public class EVCacheTestDI extends DIBase implements EVCacheGetOperationListener
         EVCacheItemMetaData evCacheItemMetaData3 = evCacheInternal.metaDebug("2w1Cw5ac3/A", true);
         // TODO: Add assertions for evcacheitemmetadata - we expect all of them to be equal.
 
-        evCacheInternal.delete("2w1Cw5ac3/A", true);
+        Future<Boolean>[] futures = evCacheInternal.delete("2w1Cw5ac3/A", true);
+        for(Future<Boolean> future: futures) {
+            assertTrue(future.get());
+        }
         assertNull(evCacheInternal.get("internaltestkey"));
+        this.propertiesToSet.remove(appName + ".hash.key");
+        propertiesToSet.remove(appName + ".use.binary.protocol");
     }
 
     @Test(dependsOnMethods = {"testEVCacheInternal"})
     public void functionalTestsWithAppLevelAndASGLevelHashingScenarios() throws Exception {
+        refreshEVCache();
+
         // no hashing
         assertFalse(manager.getEVCacheConfig().getPropertyRepository().get(appName + ".hash.key", Boolean.class).orElse(false).get());
         doFunctionalTests(false);
