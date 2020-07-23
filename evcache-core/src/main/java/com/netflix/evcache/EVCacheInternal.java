@@ -1,6 +1,8 @@
 package com.netflix.evcache;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.netflix.evcache.operation.EVCacheItem;
+import com.netflix.evcache.operation.EVCacheItemMetaData;
 import com.netflix.evcache.pool.EVCacheClientPoolManager;
 import net.spy.memcached.CachedData;
 import net.spy.memcached.transcoders.Transcoder;
@@ -13,8 +15,15 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.Future;
 
 public interface EVCacheInternal extends EVCache {
+    <T> EVCacheItem<T> metaGet(String key, Transcoder<T> tc, boolean isOriginalKeyHashed) throws EVCacheException;
+
+    EVCacheItemMetaData metaDebug(String key, boolean isOriginalKeyHashed) throws EVCacheException;
+
+    Future<Boolean>[] delete(String key, boolean isOriginalKeyHashed) throws EVCacheException;
+
     EVCacheLatch addOrSetToWriteOnly(boolean replaceItem, String key, CachedData value, int timeToLive, EVCacheLatch.Policy policy) throws EVCacheException;
 
     EVCacheLatch addOrSet(boolean replaceItem, String key, CachedData value, int timeToLive, EVCacheLatch.Policy policy, List<String> serverGroups) throws EVCacheException;

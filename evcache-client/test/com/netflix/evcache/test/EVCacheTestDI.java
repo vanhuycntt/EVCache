@@ -10,9 +10,9 @@ import java.util.*;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import com.netflix.evcache.EVCache;
-import com.netflix.evcache.EVCacheException;
-import com.netflix.evcache.EVCacheLatch;
+import com.netflix.evcache.*;
+import com.netflix.evcache.operation.EVCacheItem;
+import com.netflix.evcache.operation.EVCacheItemMetaData;
 import com.netflix.evcache.pool.EVCacheClient;
 import com.netflix.evcache.pool.ServerGroup;
 import com.netflix.evcache.util.KeyHasher;
@@ -20,7 +20,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
-import com.netflix.evcache.EVCacheGetOperationListener;
 import com.netflix.evcache.operation.EVCacheOperationFuture;
 import rx.schedulers.Schedulers;
 
@@ -31,7 +30,7 @@ public class EVCacheTestDI extends DIBase implements EVCacheGetOperationListener
     private static final Logger log = LoggerFactory.getLogger(EVCacheTestDI.class);
     private int loops = 1;
     private Map<String, String> propertiesToSet;
-    private String appName = "EVCACHE_TEST";
+    private String appName = "EVCACHE_PERF_SP_HW";
 
     public static void main(String args[]) {
         try {
@@ -58,6 +57,8 @@ public class EVCacheTestDI extends DIBase implements EVCacheGetOperationListener
         propertiesToSet.putIfAbsent(appName + ".throttle.percent", "0");
         propertiesToSet.putIfAbsent(appName + ".log.operation", "1000");
         propertiesToSet.putIfAbsent(appName + ".EVCacheClientPool.validate.input.queue", "true");
+        propertiesToSet.putIfAbsent(appName + ".hash.key","true");
+//        propertiesToSet.putIfAbsent(appName + ".use.binary.protocol", "false");
     }
 
     protected Properties getProps() {
@@ -259,7 +260,25 @@ public class EVCacheTestDI extends DIBase implements EVCacheGetOperationListener
         testEVCache();
     }
 
-    @Test(dependsOnMethods = {"testAppendOrAdd"})
+    @Test(dependsOnMethods = {"testEVCache"})
+    public void testEVCacheInternal() throws Exception {
+        EVCacheInternal evCacheInternal = getInternalNewBuilder().setAppName(appName).setCachePrefix("cid").enableRetry().build();
+        this.evCache.set("internaltestkey", "internaltestvalue");
+        EVCacheItem evCacheItem = evCache.metaGet("internaltestkey", null);
+        EVCacheItem evCacheItem1 = evCacheInternal.metaGet("internaltestkey", null);
+        EVCacheItem evCacheItem2 = evCacheInternal.metaGet("2w1Cw5ac3/A", null, true);
+        // TODO: Add assertions for evcacheItems - we expect all of them to be equal.
+
+        EVCacheItemMetaData evCacheItemMetaData1 = evCache.metaDebug("internaltestkey");
+        EVCacheItemMetaData evCacheItemMetaData2 = evCacheInternal.metaDebug("internaltestkey");
+        EVCacheItemMetaData evCacheItemMetaData3 = evCacheInternal.metaDebug("2w1Cw5ac3/A", true);
+        // TODO: Add assertions for evcacheitemmetadata - we expect all of them to be equal.
+
+        evCacheInternal.delete("2w1Cw5ac3/A", true);
+        assertNull(evCacheInternal.get("internaltestkey"));
+    }
+
+    @Test(dependsOnMethods = {"testEVCacheInternal"})
     public void functionalTestsWithAppLevelAndASGLevelHashingScenarios() throws Exception {
         // no hashing
         assertFalse(manager.getEVCacheConfig().getPropertyRepository().get(appName + ".hash.key", Boolean.class).orElse(false).get());
